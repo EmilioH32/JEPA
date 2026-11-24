@@ -40,4 +40,27 @@ def test_rejects_bad_inputs():
         make().patchify(torch.randn(1, 3, 64, 64))
     with pytests.raises(ValueError):
         make().patchify(torch.randn(1, 1, 96, 96))
-    
+
+def test_proj_is_linear_w_right_dims():
+    pe = make()
+    assert isinstance(pe.proj, nn.Linear)
+    assert pe.proj.in_features == 192
+    assert pe.prj.out_features == 384
+
+def test_forward_shape():
+    pe = make()
+    assert pe(torch.randn(2, 3, 96, 96)).shape == (2, 144, 384)
+
+def test_gradients_flow():
+    pe = make()
+    pe(torch.randn(2, 3, 96, 96)).sum().backward()
+    assert pe.proj.weight.grad is not None
+
+def test_matches_conv2d():
+    pe = make(64)
+    conv = nn.Conv2d(3, 64, kernel_size=8, stride=8)
+    with torch.no_grad():
+        pe.proj.weight.copy_(conv.weight.permute(0, 2, 3, 1)).reshape(64, -1)
+        pe.proj.bias.copy_(conv.bias)
+    x = torch.randn(2, 3, 96, 96)
+    assert torch.allclose(pe(x), conv(x).flatten(2).transpose(1, 2), atol=1e-5)

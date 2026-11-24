@@ -15,6 +15,8 @@ class PatchEmbed(nn.Module):
         self.grid_size = self.img_size // self.patch_size
         self.num_patches = self.grid_size**2
 
+        self.proj = nn.Linear(self.patch_size**2 * self.in_chans, self.embed_dim)
+
     def patchify(self, x: torch.Tensor) -> torch.Tensor:
         """(Batch, Channels, Height, Width) -> (Batch, # of Patches 'N', (patch*patch)*Channels)"""
         if x.shape[2:] != (self.img_size, self.img_size) or x.shape[1] != (self.in_chans):
@@ -27,3 +29,6 @@ class PatchEmbed(nn.Module):
         x = x.reshape(x.shape[0], self.num_patches, self.patch_size**2 * self.in_chans)
         return x
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """(Batch, Channels, Height, Width) -> (Batch, # of Patches, Embed Dim)"""
+        return self.proj(self.patchify(x))
